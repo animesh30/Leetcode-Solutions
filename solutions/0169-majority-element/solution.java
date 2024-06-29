@@ -1,18 +1,18 @@
 class Solution {
     public int majorityElement(int[] nums) {
-        int maxEle = nums[0], maxCount = 1;
+        int majEle=nums[0],majEleOcc=1;
         for(int i=1;i<nums.length;i++){
-            if(nums[i]==maxEle){
-                maxCount++;
+            if(nums[i]==majEle){
+                majEleOcc++;
             }
             else{
-                maxCount--;
-                if(maxCount==0){
-                    maxCount=1;
-                    maxEle=nums[i];
+                majEleOcc--;
+                if(majEleOcc==0){
+                    majEleOcc=1;
+                    majEle=nums[i];
                 }
             }
         }
-        return maxEle;
+        return majEle;
     }
 }
