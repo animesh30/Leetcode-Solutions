@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Sync
-        uses: joshcai/leetcode-sync@v1.7
+        uses: dilshod0401/leetcode-sync@v1.5.0
         with:
           github-token: ${{ github.token }}
           leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
