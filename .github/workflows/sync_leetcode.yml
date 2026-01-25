@@ -8,16 +8,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Crucial for pushing code
+      contents: write
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      - name: Sync Solutions
+        uses: joshcai/leetcode-sync@master
         with:
-          fetch-depth: 0
-
-      - name: Run LeetCode Synchronizer
-        uses: dos-m0nk3y/LeetCode-Synchronizer@v1.1.0
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
-          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          leetcode-session: ${{ secrets.LEETCODE_SESSION }}
+          destination-folder: 'solutions'
+          verbose: true 
