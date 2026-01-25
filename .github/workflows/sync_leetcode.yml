@@ -10,10 +10,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Sync
-        uses: P-A-R-U-S/leetcode-sync@v1.5
+      - name: Checkout Code
+        uses: actions/checkout@v4  # Official GitHub Action
+
+      - name: Set up Python
+        uses: actions/setup-python@v5 # Official GitHub Action
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
-          leetcode-session: ${{ secrets.LEETCODE_SESSION }}
-          destination-folder: 'solutions'
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Run Sync Script
+        env:
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python sync_leetcode.py
