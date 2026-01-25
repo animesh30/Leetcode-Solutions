@@ -6,91 +6,90 @@ import time
 print("--- SCRIPT STARTING ---")
 
 # --- CONFIG ---
-USERNAME = "user9350e"
 SESSION = os.environ.get('LEETCODE_SESSION')
 CSRF_TOKEN = os.environ.get('LEETCODE_CSRF_TOKEN')
 DIRECTORY = "solutions"
 
-# Let's verify secrets aren't empty
-if not SESSION or not CSRF_TOKEN:
-    print("❌ ERROR: Secrets are missing. Check your GitHub Secrets for LEETCODE_SESSION and LEETCODE_CSRF_TOKEN.")
-    exit(1)
-
-def check_login_status():
+def get_actual_username():
+    """Discover the correct slug from the session."""
     url = 'https://leetcode.com/graphql'
-    query = "query { userStatus { isSignedIn username } }"
+    query = "query { userStatus { username } }"
     headers = {
         'Cookie': f'LEETCODE_SESSION={SESSION}; csrftoken={CSRF_TOKEN}',
         'X-CSRFToken': CSRF_TOKEN,
         'Referer': 'https://leetcode.com'
     }
-    try:
-        r = requests.post(url, json={'query': query}, headers=headers)
-        r.raise_for_status()
-        data = r.json()
-        status = data.get('data', {}).get('userStatus', {})
-        if status and status.get('isSignedIn'):
-            print(f"✅ LOGGED IN AS: {status.get('username')}")
-            return True
-        print(f"❌ NOT LOGGED IN. Raw Response: {data}")
-        return False
-    except Exception as e:
-        print(f"❌ LOGIN REQUEST FAILED: {e}")
-        return False
+    r = requests.post(url, json={'query': query}, headers=headers)
+    return r.json().get('data', {}).get('userStatus', {}).get('username')
 
-def get_submissions(offset=0):
+def get_submissions(username, last_key=None):
     url = 'https://leetcode.com/graphql'
     headers = {
         'Cookie': f'LEETCODE_SESSION={SESSION}; csrftoken={CSRF_TOKEN}',
         'X-CSRFToken': CSRF_TOKEN,
-        'Referer': 'https://leetcode.com'
+        'Referer': f'https://leetcode.com/u/{username}/'
     }
+    # Using the exact query the LeetCode profile page uses
     query = """
-    query memberRecentSubmissions($username: String!, $limit: Int!, $offset: Int!) {
-      recentSubmissionList(username: $username, limit: $limit, offset: $offset) {
-        title
-        timestamp
-        statusDisplay
-        id
-        lang
+    query userSubmissions($username: String!, $lastKey: String, $limit: Int) {
+      submissionList(username: $username, lastKey: $lastKey, limit: $limit) {
+        lastKey
+        hasNext
+        submissions {
+          id
+          title
+          statusDisplay
+          timestamp
+          lang
+        }
       }
     }
     """
-    variables = {'username': USERNAME, 'limit': 20, 'offset': offset}
+    variables = {'username': username, 'limit': 20, 'lastKey': last_key}
     r = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
-    return r.json().get('data', {}).get('recentSubmissionList', [])
+    data = r.json()
+    return data.get('data', {}).get('submissionList', {})
 
 def main():
-    if not check_login_status():
+    username = get_actual_username()
+    if not username:
+        print("❌ FAILED TO DISCOVER USERNAME. Check your Session Cookie.")
         return
+    print(f"✅ DISCOVERED USERNAME SLUG: {username}")
 
     if not os.path.exists(DIRECTORY):
         os.makedirs(DIRECTORY)
-        # Create a tiny test file just to prove the script can write
-        with open(f"{DIRECTORY}/test_run.txt", "w") as f:
-            f.write(f"Script ran at {time.ctime()}")
 
-    print(f"Deep scanning {USERNAME}...")
-    for offset in [0, 20, 40, 60, 80]:
-        print(f"Checking offset {offset}...")
-        submissions = get_submissions(offset)
+    last_key = None
+    found_count = 0
+    
+    # We will check 3 pages of history
+    for page in range(3):
+        print(f"Scanning page {page + 1}...")
+        data = get_submissions(username, last_key)
+        submissions = data.get('submissions', [])
+        
         if not submissions:
-            print("No submissions returned.")
-            continue
-            
+            print(f"No submissions found on page {page + 1}. API Response: {data}")
+            break
+
         for sub in submissions:
-            # This will show every submission the script "sees"
-            print(f"Found: {sub['title']} | {sub['statusDisplay']}")
+            human_time = time.strftime('%Y-%m-%d', time.localtime(int(sub['timestamp'])))
+            print(f"Found: {sub['title']} | {sub['statusDisplay']} | {human_time}")
             
             if sub['statusDisplay'] == 'Accepted':
                 folder_name = f"{DIRECTORY}/{sub['id']}"
                 if not os.path.exists(folder_name):
                     os.makedirs(folder_name)
                     with open(f"{folder_name}/README.md", "w") as f:
-                        f.write(f"# {sub['title']}\nStatus: Accepted")
-                    print(f"💾 SAVED: {sub['title']}")
+                        f.write(f"# {sub['title']}\nSolved on: {human_time}")
+                    found_count += 1
+        
+        if not data.get('hasNext'):
+            break
+        last_key = data.get('lastKey')
 
-    print("--- SCRIPT FINISHED ---")
+    print(f"--- FINISHED. Total Saved: {found_count} ---")
 
 if __name__ == "__main__":
     main()
