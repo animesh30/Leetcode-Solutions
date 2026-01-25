@@ -10,9 +10,17 @@ CSRF_TOKEN = os.environ.get('LEETCODE_CSRF_TOKEN')
 DIRECTORY = "solutions"
 
 def check_login_status():
-    """Verify if the cookies actually log us in."""
+    """Verify if the cookies actually log us in using the 2026 schema."""
     url = 'https://leetcode.com/graphql'
-    query = "query { user { username isVerified isSignedIn } }"
+    # Updated GraphQL query for 2026
+    query = """
+    query {
+      userStatus {
+        isSignedIn
+        username
+      }
+    }
+    """
     headers = {
         'Cookie': f'LEETCODE_SESSION={SESSION}; csrftoken={CSRF_TOKEN}',
         'X-CSRFToken': CSRF_TOKEN,
@@ -21,13 +29,14 @@ def check_login_status():
     try:
         r = requests.post(url, json={'query': query}, headers=headers)
         data = r.json()
-        user = data.get('data', {}).get('user', {})
-        if user.get('isSignedIn'):
-            print(f"✅ SUCCESSFULLY LOGGED IN AS: {user.get('username')}")
+        status = data.get('data', {}).get('userStatus', {})
+        
+        if status.get('isSignedIn'):
+            print(f"✅ SUCCESSFULLY LOGGED IN AS: {status.get('username')}")
             return True
         else:
-            print("❌ LOGIN FAILED: The cookies you provided do not show a signed-in session.")
-            print(f"DEBUG DATA: {data}")
+            print("❌ LOGIN FAILED: Your session cookie is invalid or expired.")
+            print(f"DEBUG: Ensure your LEETCODE_SESSION secret is correct.")
             return False
     except Exception as e:
         print(f"❌ CONNECTION ERROR: {e}")
@@ -62,29 +71,17 @@ def main():
         os.makedirs(DIRECTORY)
 
     print(f"Deep scanning submissions for {USERNAME}...")
-    found_count = 0
-    
-    # Scanning 100 submissions to be absolutely sure we hit 10 days ago
+    # Checking 100 entries to find that 10-day-old solution
     for offset in [0, 20, 40, 60, 80]:
         submissions = get_submissions(offset)
         if not submissions:
-            print(f"No submissions found at offset {offset}.")
             continue
             
         for sub in submissions:
-            # Print EVERY submission found to the log for debugging
-            human_time = time.strftime('%Y-%m-%d', time.localtime(int(sub['timestamp'])))
-            print(f"Found: {sub['title']} | Status: {sub['statusDisplay']} | Date: {human_time}")
-            
             if sub['statusDisplay'] == 'Accepted':
-                folder_name = f"{DIRECTORY}/{sub['id']}" # Using ID to avoid slug errors
+                folder_name = f"{DIRECTORY}/{sub['id']}"
                 if not os.path.exists(folder_name):
                     os.makedirs(folder_name)
                     with open(f"{folder_name}/README.md", "w") as f:
-                        f.write(f"# {sub['title']}\nSolved on: {human_time}")
-                    found_count += 1
-
-    print(f"Total new solutions saved: {found_count}")
-
-if __name__ == "__main__":
-    main()
+                        f.write(f"# {sub['title']}\nID: {sub['id']}")
+                    print(f"✅ Synced: {sub['title']}")
