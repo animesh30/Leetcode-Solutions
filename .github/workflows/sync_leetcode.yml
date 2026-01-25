@@ -7,11 +7,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Sync
-        uses: Ma6ne/leetcode-sync-bot@v1.0.3
+        uses: P-A-R-U-S/leetcode-sync@v1.5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          leetcode_session: ${{ secrets.LEETCODE_SESSION }}
-          leetcode_csrf_token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
-          destination_folder: 'solutions'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          leetcode-csrf-token: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          leetcode-session: ${{ secrets.LEETCODE_SESSION }}
+          destination-folder: 'solutions'
