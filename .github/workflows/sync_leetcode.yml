@@ -1,16 +1,23 @@
 name: Sync Leetcode
 on:
-  workflow_dispatch:      # Allows manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: '0 21 */2 * *' # Runs at 9PM UTC every 2 days
+    - cron: '0 21 */2 * *'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Crucial for pushing code
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Run LeetCode Synchronizer
         uses: dos-m0nk3y/LeetCode-Synchronizer@v1.1.0
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Built-in GitHub secret
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
           LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
