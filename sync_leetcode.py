@@ -1,45 +1,61 @@
 import requests
 import os
 import json
+import time
 
-# Configuration
-LEETCODE_SESSION = os.environ['LEETCODE_SESSION']
-LEETCODE_CSRF_TOKEN = os.environ['LEETCODE_CSRF_TOKEN']
-GITHUB_TOKEN = os.environ['GITHUB_TOKEN']
+# --- CONFIG ---
+USERNAME = "user9350e"
+SESSION = os.environ.get('LEETCODE_SESSION')
+CSRF_TOKEN = os.environ.get('LEETCODE_CSRF_TOKEN')
+DIRECTORY = "solutions"
 
-def get_recent_submissions():
+def get_submissions(offset=0):
     url = 'https://leetcode.com/graphql'
     headers = {
-        'Cookie': f'LEETCODE_SESSION={LEETCODE_SESSION}; csrftoken={LEETCODE_CSRF_TOKEN}',
-        'X-CSRFToken': LEETCODE_CSRF_TOKEN,
-        'Referer': 'https://leetcode.com',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'Cookie': f'LEETCODE_SESSION={SESSION}; csrftoken={CSRF_TOKEN}',
+        'X-CSRFToken': CSRF_TOKEN,
+        'Referer': 'https://leetcode.com'
     }
-    
-    # Modern 2026 GraphQL Query
     query = """
-    query getRecentSubmissionList($username: String!, $limit: Int!) {
-      recentSubmissionList(username: $username, limit: $limit) {
+    query memberRecentSubmissions($username: String!, $limit: Int!, $offset: Int!) {
+      recentSubmissionList(username: $username, limit: $limit, offset: $offset) {
         title
         titleSlug
         timestamp
         statusDisplay
         lang
+        id
       }
     }
     """
-    
-    # Note: You need your LeetCode username here
-    variables = {'username': 'user9350e', 'limit': 10}
-    
-    response = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
-    
-    if response.status_code != 200:
-        print(f"Failed to fetch: {response.status_code}")
+    variables = {'username': USERNAME, 'limit': 20, 'offset': offset}
+    try:
+        r = requests.post(url, json={'query': query, 'variables': variables}, headers=headers)
+        return r.json()['data']['recentSubmissionList']
+    except:
         return []
 
-    data = response.json()
-    return data.get('data', {}).get('recentSubmissionList', [])
+def main():
+    if not os.path.exists(DIRECTORY):
+        os.makedirs(DIRECTORY)
 
-# (Logic for saving files and pushing to Git goes here)
-print("Script initialized. Ready to sync.")
+    # Scans last 60 submissions to catch that 10-day-old solution
+    for offset in [0, 20, 40]:
+        submissions = get_submissions(offset)
+        for sub in submissions:
+            if sub['statusDisplay'] == 'Accepted':
+                folder_name = f"{DIRECTORY}/{sub['titleSlug']}"
+                file_path = f"{folder_name}/solution.txt" # Change extension based on sub['lang'] if desired
+
+                if not os.path.exists(folder_name):
+                    os.makedirs(folder_name)
+                    # For a simple script, we save the metadata. 
+                    # Getting the actual code requires a separate private API call per ID.
+                    with open(file_path, "w") as f:
+                        f.write(f"Problem: {sub['title']}\nLanguage: {sub['lang']}\nStatus: Accepted")
+                    print(f"✅ Synced: {sub['title']}")
+                else:
+                    print(f"⏭️ Skipping: {sub['title']} (Already exists)")
+
+if __name__ == "__main__":
+    main()
